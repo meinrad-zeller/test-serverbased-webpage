@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template
+from flask import Flask, request, render_template, Response
 import datetime
 
 app = Flask(__name__)
@@ -19,10 +19,26 @@ def submit():
     timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     
     # Daten in die Logdatei schreiben
-    with open('log.txt', 'a') as log_file:
-        log_file.write(f"[{timestamp}] Name: {name}, Message: {message}\n")
+    try:
+        with open('log.txt', 'a') as log_file:
+            log_entry = f"[{timestamp}] Name: {name}, Message: {message}\n"
+            log_file.write(log_entry)
+            print(log_entry)  # Optional: Ausgabe in die Render-Logs
+    except Exception as e:
+        return f"Error while writing to log: {e}", 500
     
     return f"Daten gespeichert: Name - {name}, Message - {message}"
 
+# Route zum Anzeigen der Logdatei
+@app.route('/logs', methods=['GET'])
+def view_logs():
+    try:
+        with open('log.txt', 'r') as log_file:
+            logs = log_file.read()
+        return Response(logs, mimetype='text/plain')
+    except FileNotFoundError:
+        return "Log file not found.", 404
+
+# Main-Entry-Point
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
