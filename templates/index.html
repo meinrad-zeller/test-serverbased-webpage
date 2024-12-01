@@ -3,16 +3,117 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Webpage Input</title>
+    <title>SP Lead Tool</title>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD5m3uw8J7A7jLrjjNBk72Zf5172ZsRCQw"></script>
 </head>
 <body>
-    <h1>Gib deine Daten ein</h1>
-    <form action="/submit" method="POST">
-        <label for="name">Name:</label>
-        <input type="text" id="name" name="name" required><br><br>
-        <label for="message">Nachricht:</label>
-        <textarea id="message" name="message" required></textarea><br><br>
-        <button type="submit">Senden</button>
-    </form>
+    <h1>SP Lead Tool</h1>
+    <label for="username">Enter your name:</label>
+    <input type="text" id="username" placeholder="Enter your name here">
+    <div id="map" style="width: 100%; height: 500px; margin-top: 20px;"></div>
+    <div style="margin-top: 20px;">
+        <button style="background-color: red; color: white;" onclick="buttonClick('KI')">KI</button>
+        <button style="background-color: blue; color: white;" onclick="buttonClick('X')">X</button>
+        <button style="background-color: black; color: white;" onclick="buttonClick('POS')">POS</button>
+        <button style="background-color: yellow; color: black;" onclick="buttonClick('WVL')">WVL</button>
+        <button style="background-color: green; color: white;" onclick="buttonClick('Auftrag')">Auftrag</button>
+    </div>
+    <script>
+        let map, currentMarker = null;
+
+        function initMap() {
+            navigator.geolocation.getCurrentPosition(position => {
+                const userLocation = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                };
+
+                map = new google.maps.Map(document.getElementById('map'), {
+                    center: userLocation,
+                    zoom: 15
+                });
+
+                map.addListener('click', (event) => {
+                    const geocoder = new google.maps.Geocoder();
+                    const latLng = event.latLng;
+
+                    if (currentMarker) currentMarker.setMap(null);
+
+                    currentMarker = new google.maps.Marker({
+                        position: latLng,
+                        map: map,
+                        icon: "http://maps.google.com/mapfiles/ms/icons/grey-dot.png"
+                    });
+
+                    geocoder.geocode({ location: latLng }, (results, status) => {
+                        if (status === "OK" && results[0]) {
+                            const addressComponents = results[0].address_components;
+                            currentMarker.address = parseAddress(addressComponents);
+                            alert("Selected address: " + results[0].formatted_address);
+                        }
+                    });
+                });
+            });
+        }
+
+        function parseAddress(components) {
+            const getComponent = (type) => components.find(c => c.types.includes(type))?.long_name || "";
+            return {
+                street: getComponent("route"),
+                houseNumber: getComponent("street_number"),
+                postalCode: getComponent("postal_code"),
+                city: getComponent("locality")
+            };
+        }
+
+        function buttonClick(buttonType) {
+            if (!currentMarker || !currentMarker.address) {
+                alert("Please select a location on the map first!");
+                return;
+            }
+
+            const userName = document.getElementById('username').value.trim();
+            if (!userName) {
+                alert("Please enter your name!");
+                return;
+            }
+
+            const { postalCode, city, street, houseNumber } = currentMarker.address;
+
+            const data = {
+                userName,
+                buttonType,
+                postalCode,
+                city,
+                street,
+                houseNumber
+            };
+
+            if (buttonType === "Auftrag") {
+                data.name = prompt("Enter name:");
+                data.phone = prompt("Enter phone number:");
+                data.email = prompt("Enter email:");
+                currentMarker.setIcon("http://maps.google.com/mapfiles/ms/icons/green-dot.png");
+            } else {
+                const colorMap = {
+                    "KI": "red",
+                    "X": "blue",
+                    "POS": "black",
+                    "WVL": "yellow"
+                };
+                currentMarker.setIcon(`http://maps.google.com/mapfiles/ms/icons/${colorMap[buttonType]}-dot.png`);
+            }
+
+            fetch('/log', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            }).then(response => response.json())
+              .then(result => alert(result.message))
+              .catch(error => console.error('Error:', error));
+        }
+
+        window.onload = initMap;
+    </script>
 </body>
 </html>

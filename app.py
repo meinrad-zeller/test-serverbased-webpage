@@ -1,46 +1,38 @@
-from flask import Flask, request, render_template, Response
-import datetime
-import os  # Import the os module
-
+from flask import Flask, request, jsonify
+import csv
+from datetime import datetime
 
 app = Flask(__name__)
 
-# Route für die Startseite
-@app.route('/')
-def index():
-    return render_template('index.html')
+LOG_FILE = "log.csv"
 
-# Route zum Verarbeiten der Eingaben
-@app.route('/submit', methods=['POST'])
-def submit():
-    # Daten aus dem Formular erhalten
-    name = request.form.get('name')
-    message = request.form.get('message')
-    
-    # Zeitstempel hinzufügen
-    timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    
-    # Daten in die Logdatei schreiben
-    try:
-        with open('log.txt', 'a') as log_file:
-            log_entry = f"[{timestamp}] Name: {name}, Message: {message}\n"
-            log_file.write(log_entry)
-            print(log_entry)  # Optional: Ausgabe in die Render-Logs
-    except Exception as e:
-        return f"Error while writing to log: {e}", 500
-    
-    return f"Daten gespeichert: Name - {name}, Message - {message}"
+@app.route('/log', methods=['POST'])
+def log_action():
+    data = request.json
 
-# Route zum Anzeigen der Logdatei
-@app.route('/logs', methods=['GET'])
-def view_logs():
-    try:
-        with open('log.txt', 'r') as log_file:
-            logs = log_file.read()
-        return Response(logs, mimetype='text/plain')
-    except FileNotFoundError:
-        return "Log file not found.", 404
+    now = datetime.now()
+    date = now.strftime("%Y-%m-%d")
+    time = now.strftime("%H:%M:%S")
 
-# Main-Entry-Point
-if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
+    row = [
+        data['userName'],
+        date,
+        time,
+        data['buttonType'],
+        data['postalCode'],
+        data['city'],
+        data['street'],
+        data['houseNumber']
+    ]
+
+    if data['buttonType'] == 'Auftrag':
+        row.extend([data.get('name', ''), data.get('phone', ''), data.get('email', '')])
+
+    with open(LOG_FILE, 'a', newline='', encoding='utf-8') as file:
+        writer = csv.writer(file)
+        writer.writerow(row)
+
+    return jsonify({"message": "Action logged successfully!"})
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
