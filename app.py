@@ -4,7 +4,7 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-LOG_FILE = "log.csv"
+LOG_FILE = "log.txt"
 
 @app.route('/log', methods=['POST'])
 def log_action():
